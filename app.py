@@ -3,125 +3,139 @@ import pandas as pd
 import plotly.graph_objects as go
 from streamlit_option_menu import option_menu
 
-# 1. Authentic Template Page Setup
-st.set_page_config(page_title="Sri's Tech Pulse - Controller Layout", layout="wide", page_icon="🛩️")
+# 1. Page Global Setup
+st.set_page_config(page_title="VisionX - Flight Control", layout="wide", page_icon="🛩️")
 
-# Pure White Modern Grid Minimalist Styling to perfectly match the blogger mockup look
+# Custom Status Box Colors Style Configuration
 st.markdown("""
     <style>
-    .reportview-container { background: #fafafa; }
-    .status-panel { padding: 18px; border-radius: 6px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    .status-normal { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-    .status-warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-    .status-critical { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-    .metric-card { background: #ffffff; padding: 15px; border-radius: 6px; border: 1px solid #e0e0e0; text-align: center; }
+    [data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #e0e0e0; }
+    .status-box { padding: 20px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 8px solid; }
+    .status-normal { background-color: #d4edda; color: #155724; border-color: #28a745; }
+    .status-warning { background-color: #fff3cd; color: #856404; border-color: #ffc107; }
+    .status-critical { background-color: #f8d7da; color: #721c24; border-color: #dc3545; }
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Extract Data Assets
+# 2. Read Flight Log Safely
 try:
     df = pd.read_csv("flight_data.csv")
     df.columns = df.columns.str.strip()
 except FileNotFoundError:
-    st.error("🚨 'flight_data.csv' array stream error!")
+    st.error("🚨 'flight_data.csv' file missing inside repository!")
     st.stop()
 
-latest = df.iloc[-1]
-alt_now = latest.get('Altitude', 0.0)
-acc_now = latest.get('Accel', 0.0)
-bat_now = latest.get('Battery', 0.0)
+# Extract essential telemetry limits parameters
+latest_row = df.iloc[-1]
+alt_val = latest_row.get('Altitude', 0.0)
+acc_val = latest_row.get('Accel', 0.0)
+bat_val = latest_row.get('Battery', 0.0)
 
-# 3. Dedicated Status Decider Engine
-def calculate_status_bounds(value, sensor_name):
-    if sensor_name == "Altitude":
-        if value > 120.0 or value < 0.5: return "CRITICAL", "status-critical", "🔴 CRITICAL - Abnormal Altitude Bounds Fault"
-        elif value > 110.0: return "WARNING", "status-warning", "🟡 WARNING - High Ceiling Fluctuations Detected"
-        return "NORMAL", "status-normal", "🟢 NORMAL - Altitude System Matrix Optimal"
-    elif sensor_name == "Acceleration":
-        if value > 20.0: return "CRITICAL", "status-critical", "🔴 CRITICAL - Excessive G-Force Impact Shock"
-        elif value > 5.0: return "WARNING", "status-warning", "🟡 WARNING - Instability & Vibrations Present"
-        return "NORMAL", "status-normal", "🟢 NORMAL - Inertial Axis Alignment Stable"
-    elif sensor_name == "Voltage":
-        if value < 7.2: return "CRITICAL", "status-critical", "🔴 CRITICAL - Battery Brownout / Failure Cutoff"
-        elif value < 7.5: return "WARNING", "status-warning", "🟡 WARNING - Power Reserve Discharging Fast"
-        return "NORMAL", "status-normal", "🟢 NORMAL - DC Bus Voltage Normal"
-    return "UNKNOWN", "status-normal", "⚪ Status Context Null"
+# 3. Dynamic Threshold Status Check Generator Function
+def get_status_meta(val, metric_type):
+    if metric_type == "Altitude":
+        if val > 120.0: return "CRITICAL", "status-critical", "🔴 CRITICAL DESCENT / CEILING BREAKED"
+        elif val > 110.0: return "WARNING", "status-warning", "🟡 WARNING - Approaching Extreme Alt Bound"
+        return "NORMAL", "status-normal", "🟢 NORMAL - Safe Barometric Altitude Operational Zone"
+        
+    elif metric_type == "Acceleration":
+        if val > 20.0: return "CRITICAL", "status-critical", "🔴 CRITICAL IMPACT / HIGH FORCE DETECTED"
+        elif val > 5.0: return "WARNING", "status-warning", "🟡 WARNING - High G-Force Vibration Anomalies"
+        return "NORMAL", "status-normal", "🟢 NORMAL - Stable IMU Axis Orientations"
+        
+    elif metric_type == "Voltage":
+        if val < 7.2: return "CRITICAL", "status-critical", "🔴 CRITICAL BROWNOUT / BATT DEPLETION STAGE"
+        elif val < 7.5: return "WARNING", "status-warning", "🟡 WARNING - Battery Charging Discharge State"
+        return "NORMAL", "status-normal", "🟢 NORMAL - Power Rail System Stable"
+    return "UNKNOWN", "status-normal", "⚪ NO CONTEXT LOGGED"
 
-st.title("📊 Sri's Tech Pulse")
-st.markdown("#### Embedded Flight Parameter Controller Monitoring Platform")
+# 4. Blogger-Inspired Top Navigation Menubar (Allows individual selection check)
+st.title("🛩️ Team VisionX - Flight Log Controller Platform")
+st.markdown("### VisionX - Modular Sensor Data Analyzer")
 
-# 4. Global Sensor Status Cards Block Row (Displays everything at a single glance)
-st.markdown("### 🖥️ Real-time Sensor Status Row Highlights")
-s_col1, s_col2, s_col3 = st.columns(3)
-
-with s_col1:
-    _, c_class, msg = calculate_status_bounds(alt_now, "Altitude")
-    st.markdown(f"<div class='status-panel {c_class}'><b>Altitude State:</b><br>{msg}<br>Value: {alt_now} m</div>", unsafe_allow_html=True)
-with s_col2:
-    _, c_class, msg = calculate_status_bounds(acc_now, "Acceleration")
-    st.markdown(f"<div class='status-panel {c_class}'><b>Acceleration State:</b><br>{msg}<br>Value: {acc_now} m/s²</div>", unsafe_allow_html=True)
-with s_col3:
-    _, c_class, msg = calculate_status_bounds(bat_now, "Voltage")
-    st.markdown(f"<div class='status-panel {c_class}'><b>Battery State:</b><br>{msg}<br>Value: {bat_now} V</div>", unsafe_allow_html=True)
-
-st.markdown("---")
-
-# 5. Professional Blogger Integrated Menu Navigation Bar Layout
-selected_view = option_menu(
-    menu_title=None,
-    options=["Altitude Deep Analysis Only", "Acceleration Tracking Only", "Voltage Telemetry Only"],
-    icons=["cloud-lightning", "activity", "battery-charging"],
-    default_index=0,
+selected_metric = option_menu(
+    menu_title=None, 
+    options=["Altitude Analytics Only", "Acceleration Analytics Only", "Battery Voltage Analytics Only"], 
+    icons=["cloud-arrow-up", "speedometer2", "lightning-charge"], 
+    menu_icon="cast", 
+    default_index=0, 
     orientation="horizontal",
     styles={
-        "container": {"background-color": "#ffffff", "border": "1px solid #e0e0e0", "padding": "0!important"},
-        "nav-link": {"font-size": "14px", "color": "#555", "--hover-color": "#f8f9fa"},
-        "nav-link-selected": {"background-color": "#000000", "color": "#ffffff", "font-weight": "600"}
+        "container": {"padding": "0!important", "background-color": "#ffffff", "border-radius": "5px", "box-shadow": "0 1px 3px rgba(0,0,0,0.1)"},
+        "icon": {"color": "#ffaa00", "font-size": "18px"}, 
+        "nav-link": {"font-size": "15px", "text-align": "center", "margin":"0px", "color": "#333", "--hover-color": "#f1f1f1"},
+        "nav-link-selected": {"background-color": "#111111", "color": "#ffffff", "font-weight": "bold"},
     }
 )
 
-# 6. Extrema Peak Detection Rendering Core Engine
-def display_extrema_plot(metric_key, chart_title, symbol_units):
-    max_idx = df[metric_key].idxmax()
-    min_idx = df[metric_key].idxmin()
+# 5. Shared Reusable Graph Extrema Plotter with Highlights Bounds
+def draw_extrema_chart(col_name, label_title, unit_symbol):
+    max_idx = df[col_name].idxmax()
+    min_idx = df[col_name].idxmin()
     
-    mx_val, mx_time = df.loc[max_idx, metric_key], df.loc[max_idx, 'Time']
-    mn_val, mn_time = df.loc[min_idx, metric_key], df.loc[min_idx, 'Time']
+    max_v, max_t = df.loc[max_idx, col_name], df.loc[max_idx, 'Time']
+    min_v, min_t = df.loc[min_idx, col_name], df.loc[min_idx, 'Time']
     
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df['Time'], y=df[metric_key], mode='lines', name='Trajectory', line=dict(color='#000000', width=2.5)))
+    fig.add_trace(go.Scatter(x=df['Time'], y=df[col_name], mode='lines', name=col_name, line=dict(color='#111111', width=3)))
     
-    # 🔺 Absolute Peak Highlight
+    # 🔺 Peak Point Highlight
     fig.add_trace(go.Scatter(
-        x=[mx_time], y=[mx_val], mode='markers+text', name='Max Peak',
-        text=[f"🔺 Max: {mx_val} {symbol_units}"], textposition="top center",
-        marker=dict(color='#dc3545', size=13, symbol='circle')
+        x=[max_t], y=[max_v], mode='markers+text', name='Max Peak',
+        text=[f"🔺 Peak Max: {max_v}{unit_symbol}"], textposition="top center",
+        marker=dict(color='#dc3545', size=14, symbol='circle')
     ))
     
-    # 🔻 Absolute Min Highlight
+    # 🔻 Valley Minimum Highlight
     fig.add_trace(go.Scatter(
-        x=[mn_time], y=[mn_val], mode='markers+text', name='Min Valley',
-        text=[f"🔻 Min: {mn_val} {symbol_units}"], textposition="bottom center",
-        marker=dict(color='#28a745', size=13, symbol='circle')
+        x=[min_t], y=[min_v], mode='markers+text', name='Min Valley',
+        text=[f"🔻 Minimum: {min_v}{unit_symbol}"], textposition="bottom center",
+        marker=dict(color='#28a745', size=14, symbol='circle')
     ))
     
     fig.update_layout(
-        title=chart_title, xaxis_title="Time Frame Vector (s)", yaxis_title=f"{metric_key} ({symbol_units})",
-        plot_bgcolor='#ffffff', margin=dict(l=15, r=15, t=40, b=15), hovermode="x unified"
+        title=label_title, xaxis_title="Time (seconds)", yaxis_title=f"{col_name} ({unit_symbol})",
+        hovermode="x unified", margin=dict(l=20, r=20, t=50, b=20), plot_bgcolor='#fafafa'
     )
-    fig.update_xaxes(showgrid=True, gridcolor='#f0f0f0')
-    fig.update_yaxes(showgrid=True, gridcolor='#f0f0f0')
     st.plotly_chart(fig, use_container_width=True)
 
-# 7. Isolated Split Selection Logic
-if selected_view == "Altitude Deep Analysis Only":
-    st.subheader("📋 Segmented Isolation Vector: Barometric Altitude")
-    display_extrema_plot('Altitude', "BMP280 Isolated Real-time Altitude Flight Vector", "m")
+# 6. Render Segmented View Layout blocks based on Menu Select Actions
+st.markdown("---")
 
-elif selected_view == "Acceleration Tracking Only":
-    st.subheader("📋 Segmented Isolation Vector: IMU Motion Forces")
-    display_extrema_plot('Accel', "MPU6050 Motion Force Inertial Spectrum Curves", "m/s²")
+if selected_metric == "Altitude Analytics Only":
+    status_type, css_class, message = get_status_meta(alt_val, "Altitude")
+    
+    st.markdown(f"""
+        <div class="status-box {css_class}">
+            <h3 style="margin:0; font-weight:bold;">{message}</h3>
+            <p style="margin:5px 0 0 0;">Current Registered Reading: <b>{alt_val} meters</b> | Target Source: BMP280 Barometer Array</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Display specialized isolated graphic logs vector
+    draw_extrema_chart('Altitude', "BMP280 Isolated Flight Altitude Trajectory Vector", "m")
 
-elif selected_view == "Voltage Telemetry Only":
-    st.subheader("📋 Segmented Isolation Vector: Main Power Grid")
-    display_extrema_plot('Battery', "Lithium Pack Discharge Metrics Analytics", "V")
+elif selected_metric == "Acceleration Analytics Only":
+    status_type, css_class, message = get_status_meta(acc_val, "Acceleration")
+    
+    st.markdown(f"""
+        <div class="status-box {css_class}">
+            <h3 style="margin:0; font-weight:bold;">{message}</h3>
+            <p style="margin:5px 0 0 0;">Current Registered Reading: <b>{acc_val} m/s²</b> | Target Source: MPU6050 6-Axis Inertial Block</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    draw_extrema_chart('Accel', "MPU6050 Acceleration Load Vector Analysis", "m/s²")
+
+elif selected_metric == "Battery Voltage Analytics Only":
+    status_type, css_class, message = get_status_meta(bat_val, "Voltage")
+    
+    st.markdown(f"""
+        <div class="status-box {css_class}">
+            <h3 style="margin:0; font-weight:bold;">{message}</h3>
+            <p style="margin:5px 0 0 0;">Current Registered Reading: <b>{bat_val} Volts</b> | Target Source: ADC Battery Sensor Rail</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    draw_extrema_chart('Battery', "Power Cells Discharge Curve & System Logging Diagnostics", "V")
+
